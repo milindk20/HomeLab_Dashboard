@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<nav class="navbar">
+    <h1><i class="fas fa-server"></i> {{ dashboard_title }}</h1>
+    <div>
+        <a href="{{ url_for('admin') }}"><i class="fas fa-cog"></i> Admin</a>
+        <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    </div>
+</nav>
+
+<div class="container">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="flash-messages">
+                {% for category, message in messages %}
+                    <div class="flash {{ category }}">{{ message }}</div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+    
+    {% if categories %}
+    <div class="category-filter">
+        <button class="active" onclick="filterCategory('all', this)">All</button>
+        {% for category in categories %}
+        <button onclick="filterCategory('{{ category }}', this)">{{ category }}</button>
+        {% endfor %}
+    </div>
+    {% endif %}
+    
+    {% if services %}
+    <div class="grid">
+        {% for service in services %}
+        <a href="{{ service.url }}" target="_blank" class="service-card card" data-category="{{ service.category }}">
+            <div class="icon"><i class="fas {{ service.icon }}"></i></div>
+            <h3>{{ service.name }}</h3>
+            <p>{{ service.description }}</p>
+            <span class="category">{{ service.category }}</span>
+        </a>
+        {% endfor %}
+    </div>
+    {% else %}
+    <div class="empty-state">
+        <i class="fas fa-folder-open"></i>
+        <h2>No services configured</h2>
+        <p>Add your first service in the Admin panel</p>
+        <a href="{{ url_for('admin') }}" class="btn btn-primary" style="margin-top: 1rem;">
+            <i class="fas fa-plus"></i> Add Service
+        </a>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+function filterCategory(category, btn) {
+    document.querySelectorAll('.category-filter button').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    
+    document.querySelectorAll('.service-card').forEach(card => {
+        if (category === 'all' || card.dataset.category === category) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+</script>
+{% endblock %}
