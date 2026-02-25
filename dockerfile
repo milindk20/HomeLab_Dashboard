@@ -2,7 +2,7 @@ version: "1.0"
 
 services:
   homelab_dashboard:
-    image: ubuntu:22.04
+    image: ubuntu:24.04
     container_name: homelab_dashboard
     restart: unless-stopped
     working_dir: /app
