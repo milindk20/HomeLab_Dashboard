@@ -8,6 +8,8 @@ services:
     working_dir: /app
     volumes:
       - ./data:/app
+    ports: 
+      - "5001:5001"
     command: >
       bash -c "
       apt-get update &&
