@@ -1,0 +1,19 @@
+version: "1.0"
+
+services:
+  homelab_dashboard:
+    image: ubuntu:22.04
+    container_name: homelab_dashboard
+    restart: unless-stopped
+    working_dir: /app
+    volumes:
+      - ./data:/app
+    command: >
+      bash -c "
+      apt-get update &&
+      apt-get install -y git python3 python3-pip &&
+      git clone https://github.com/milindk20/HomeLab_Dashboard /app &&
+      cd /app &&
+      pip3 install -r requirements.txt &&
+      python3 app.py
+      "
