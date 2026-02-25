@@ -1,6 +1,8 @@
 import os
 import bcrypt
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory
+import requests
+import time
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from datetime import datetime
@@ -199,6 +201,63 @@ def change_password():
 @app.route('/uploads/<filename>')
 def uploaded_file(filename):
     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
+
+@app.route('/api/service-status')
+def service_status():
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    services = Service.query.filter_by(status='active').all()
+    results = []
+    
+    for service in services:
+        status_info = check_service_status(service.url)
+        results.append({
+            'id': service.id,
+            'name': service.name,
+            'url': service.url,
+            'online': status_info['online'],
+            'response_time': status_info['response_time']
+        })
+    
+    return jsonify(results)
+
+@app.route('/api/service-status/<int:service_id>')
+def single_service_status(service_id):
+    if 'user_id' not in session:
+        return jsonify({'error': 'Unauthorized'}), 401
+    
+    service = Service.query.get_or_404(service_id)
+    status_info = check_service_status(service.url)
+    
+    return jsonify({
+        'id': service.id,
+        'name': service.name,
+        'url': service.url,
+        'online': status_info['online'],
+        'response_time': status_info['response_time']
+    })
+
+def check_service_status(url):
+    try:
+        start_time = time.time()
+        response = requests.get(url, timeout=5, verify=False, allow_redirects=True)
+        response_time = int((time.time() - start_time) * 1000)
+        
+        if response.status_code < 500:
+            return {'online': True, 'response_time': response_time}
+        else:
+            return {'online': False, 'response_time': response_time}
+    except requests.exceptions.SSLError:
+        try:
+            start_time = time.time()
+            response = requests.get(url, timeout=5, verify=False, allow_redirects=True)
+            response_time = int((time.time() - start_time) * 1000)
+            return {'online': True, 'response_time': response_time}
+        except:
+            return {'online': False, 'response_time': 0}
+    except:
+        return {'online': False, 'response_time': 0}
 
 def init_db():
     with app.app_context():

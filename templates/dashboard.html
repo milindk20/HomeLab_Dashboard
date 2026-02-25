@@ -3,9 +3,21 @@
 {% block content %}
 <nav class="navbar">
     <h1><i class="fas fa-server"></i> {{ dashboard_title }}</h1>
-    <div>
-        <a href="{{ url_for('admin') }}"><i class="fas fa-cog"></i> Admin</a>
-        <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> Logout</a>
+    <div class="navbar-search mobile-hidden">
+        <select id="searchEngine" onchange="updateSearchPlaceholder()">
+            <option value="google">Google</option>
+            <option value="duckduckgo">DuckDuckGo</option>
+            <option value="bing">Bing</option>
+            <option value="brave">Brave</option>
+            <option value="yahoo">Yahoo</option>
+            <option value="startpage">Startpage</option>
+        </select>
+        <input type="text" id="webSearch" placeholder="Search Google..." onkeypress="handleSearch(event)">
+        <button onclick="performSearch()"><i class="fas fa-search"></i></button>
+    </div>
+    <div class="navbar-links">
+        <a href="{{ url_for('admin') }}"><i class="fas fa-cog"></i> <span>Admin</span></a>
+        <a href="{{ url_for('logout') }}"><i class="fas fa-sign-out-alt"></i> <span>Logout</span></a>
     </div>
 </nav>
 
@@ -20,6 +32,13 @@
         {% endif %}
     {% endwith %}
     
+{% if categories %}
+    <div class="search-bar">
+        <i class="fas fa-search"></i>
+        <input type="text" id="serviceSearch" placeholder="Search services..." oninput="searchServices(this.value)">
+    </div>
+    {% endif %}
+    
     {% if categories %}
     <div class="category-filter">
         <button class="active" onclick="filterCategory('all', this)">All</button>
@@ -32,11 +51,13 @@
     {% if services %}
     <div class="grid">
         {% for service in services %}
-        <a href="{{ service.url }}" target="_blank" class="service-card card" data-category="{{ service.category }}">
+        <a href="{{ service.url }}" target="_blank" class="service-card card" data-category="{{ service.category }}" data-service-id="{{ service.id }}" data-url="{{ service.url }}">
+            <div class="status-indicator online" id="status-{{ service.id }}"><span class="status-dot"></span></div>
             <div class="icon"><i class="fas {{ service.icon }}"></i></div>
             <h3>{{ service.name }}</h3>
             <p>{{ service.description }}</p>
             <span class="category">{{ service.category }}</span>
+            <span class="response-time" id="response-{{ service.id }}" style="display: none;"></span>
         </a>
         {% endfor %}
     </div>
@@ -52,6 +73,19 @@
     {% endif %}
 </div>
 
+<div class="mobile-search-bar">
+    <select id="mobileSearchEngine" onchange="updateMobileSearchPlaceholder()">
+        <option value="google">Google</option>
+        <option value="duckduckgo">DuckDuckGo</option>
+        <option value="bing">Bing</option>
+        <option value="brave">Brave</option>
+        <option value="yahoo">Yahoo</option>
+        <option value="startpage">Startpage</option>
+    </select>
+    <input type="text" id="mobileWebSearch" placeholder="Search Google..." onkeypress="handleMobileSearch(event)">
+    <button onclick="performMobileSearch()"><i class="fas fa-search"></i></button>
+</div>
+
 <script>
 function filterCategory(category, btn) {
     document.querySelectorAll('.category-filter button').forEach(b => b.classList.remove('active'));
@@ -65,5 +99,106 @@ function filterCategory(category, btn) {
         }
     });
 }
+
+function searchServices(query) {
+    query = query.toLowerCase();
+    document.querySelectorAll('.service-card').forEach(card => {
+        const name = card.querySelector('h3').textContent.toLowerCase();
+        const desc = card.querySelector('p').textContent.toLowerCase();
+        const category = card.dataset.category;
+        
+        if (query === '' || name.includes(query) || desc.includes(query) || category.includes(query)) {
+            card.style.display = 'block';
+        } else {
+            card.style.display = 'none';
+        }
+    });
+}
+
+function updateSearchPlaceholder() {
+    const engine = document.getElementById('searchEngine').value;
+    const names = { google: 'Search Google...', duckduckgo: 'Search DuckDuckGo...', bing: 'Search Bing...', brave: 'Search Brave...', yahoo: 'Search Yahoo...', startpage: 'Search Startpage...' };
+    document.getElementById('webSearch').placeholder = names[engine] || 'Search...';
+}
+
+function handleSearch(e) {
+    if (e.key === 'Enter') performSearch();
+}
+
+function performSearch() {
+    const query = document.getElementById('webSearch').value;
+    if (!query.trim()) return;
+    
+    const engine = document.getElementById('searchEngine').value;
+    const urls = {
+        google: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+        duckduckgo: `https://duckduckgo.com/?q=${encodeURIComponent(query)}`,
+        bing: `https://www.bing.com/search?q=${encodeURIComponent(query)}`,
+        brave: `https://search.brave.com/search?q=${encodeURIComponent(query)}`,
+        yahoo: `https://search.yahoo.com/search?p=${encodeURIComponent(query)}`,
+        startpage: `https://www.startpage.com/do/search?q=${encodeURIComponent(query)}`
+    };
+    window.open(urls[engine], '_blank');
+}
+
+function updateMobileSearchPlaceholder() {
+    const engine = document.getElementById('mobileSearchEngine').value;
+    const names = { google: 'Search Google...', duckduckgo: 'Search DuckDuckGo...', bing: 'Search Bing...', brave: 'Search Brave...', yahoo: 'Search Yahoo...', startpage: 'Search Startpage...' };
+    document.getElementById('mobileWebSearch').placeholder = names[engine] || 'Search...';
+}
+
+function handleMobileSearch(e) {
+    if (e.key === 'Enter') performMobileSearch();
+}
+
+function performMobileSearch() {
+    const query = document.getElementById('mobileWebSearch').value;
+    if (!query.trim()) return;
+    
+    const engine = document.getElementById('mobileSearchEngine').value;
+    const urls = {
+        google: `https://www.google.com/search?q=${encodeURIComponent(query)}`,
+        duckduckgo: `https://duckduckgo.com/?q=${encodeURIComponent(query)}`,
+        bing: `https://www.bing.com/search?q=${encodeURIComponent(query)}`,
+        brave: `https://search.brave.com/search?q=${encodeURIComponent(query)}`,
+        yahoo: `https://search.yahoo.com/search?p=${encodeURIComponent(query)}`,
+        startpage: `https://www.startpage.com/do/search?q=${encodeURIComponent(query)}`
+    };
+    window.open(urls[engine], '_blank');
+}
+
+async function checkServiceStatuses() {
+    try {
+        const response = await fetch('/api/service-status');
+        if (!response.ok) return;
+        
+        const services = await response.json();
+        
+        services.forEach(service => {
+            const statusEl = document.getElementById(`status-${service.id}`);
+            const responseEl = document.getElementById(`response-${service.id}`);
+            
+            if (statusEl) {
+                statusEl.className = `status-indicator ${service.online ? 'online' : 'offline'}`;
+                if (service.online && service.response_time > 0) {
+                    statusEl.title = `Response time: ${service.response_time}ms`;
+                } else if (!service.online) {
+                    statusEl.title = 'Service is offline';
+                }
+            }
+            
+            if (responseEl && service.online && service.response_time > 0) {
+                responseEl.textContent = `${service.response_time}ms`;
+                responseEl.style.display = 'inline-block';
+            }
+        });
+    } catch (error) {
+        console.error('Failed to check service statuses:', error);
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    checkServiceStatuses();
+});
 </script>
 {% endblock %}
