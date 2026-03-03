@@ -27,6 +27,9 @@
         <button class="tab" onclick="openTab('appearance', event)">
             <i class="fas fa-palette"></i> Appearance
         </button>
+        <button class="tab" onclick="openTab('backup', event)">
+            <i class="fas fa-database"></i> Backup
+        </button>
         <button class="tab" onclick="openTab('account', event)">
             <i class="fas fa-user"></i> Account
         </button>
@@ -130,6 +133,37 @@
                 <i class="fas fa-save"></i> Save Settings
             </button>
         </form>
+    </div>
+    
+    <div id="backup" class="tab-content">
+        <h2>Backup & Restore</h2>
+        <div class="settings-grid">
+            <div class="card">
+                <h3><i class="fas fa-download"></i> Create Backup</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                    Download a backup file containing your database, settings, and uploaded wallpapers.
+                </p>
+                <a href="{{ url_for('create_backup') }}" class="btn btn-primary">
+                    <i class="fas fa-download"></i> Download Backup
+                </a>
+            </div>
+            
+            <div class="card">
+                <h3><i class="fas fa-upload"></i> Restore Backup</h3>
+                <p style="color: var(--text-secondary); margin-bottom: 1rem;">
+                    Upload a backup file to restore your settings. This will overwrite current data.
+                </p>
+                <form method="POST" action="{{ url_for('restore_backup') }}" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label>Select Backup File</label>
+                        <input type="file" name="backup_file" accept=".zip" required>
+                    </div>
+                    <button type="submit" class="btn btn-primary" onclick="return confirm('Warning: This will overwrite your current data. Continue?')">
+                        <i class="fas fa-upload"></i> Restore Backup
+                    </button>
+                </form>
+            </div>
+        </div>
     </div>
     
     <div id="account" class="tab-content">

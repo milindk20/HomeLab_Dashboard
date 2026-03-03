@@ -2,10 +2,13 @@ import os
 import bcrypt
 import requests
 import time
-from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify
+import zipfile
+import io
+from flask import Flask, render_template, request, redirect, url_for, session, flash, send_from_directory, jsonify, make_response
 from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
 from datetime import datetime
+from config import BASE_DIR
 
 app = Flask(__name__)
 app.config.from_object('config.Config')
@@ -196,6 +199,93 @@ def change_password():
     user.password_hash = bcrypt.hashpw(new_password.encode('utf-8'), bcrypt.gensalt()).decode('utf-8')
     db.session.commit()
     flash('Password changed successfully', 'success')
+    return redirect(url_for('admin'))
+
+@app.route('/admin/backup')
+def create_backup():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    memory_file = io.BytesIO()
+    
+    with zipfile.ZipFile(memory_file, 'w', zipfile.ZIP_DEFLATED) as zf:
+        db_path = os.path.join(BASE_DIR, 'database', 'homelab.db')
+        if os.path.exists(db_path):
+            zf.write(db_path, 'database/homelab.db')
+        
+        upload_folder = app.config['UPLOAD_FOLDER']
+        if os.path.exists(upload_folder):
+            for root, dirs, files in os.walk(upload_folder):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    arcname = os.path.join('static/uploads', os.path.basename(file_path))
+                    zf.write(file_path, arcname)
+        
+        settings_data = {}
+        for setting in Setting.query.all():
+            settings_data[setting.key] = setting.value
+        import json
+        zf.writestr('settings.json', json.dumps(settings_data))
+    
+    memory_file.seek(0)
+    timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+    response = make_response(memory_file.getvalue())
+    response.headers['Content-Disposition'] = f'attachment; filename=homelab_backup_{timestamp}.zip'
+    response.headers['Content-Type'] = 'application/zip'
+    return response
+
+@app.route('/admin/restore', methods=['POST'])
+def restore_backup():
+    if 'user_id' not in session:
+        return redirect(url_for('login'))
+    
+    if 'backup_file' not in request.files:
+        flash('No file selected', 'error')
+        return redirect(url_for('admin'))
+    
+    file = request.files['backup_file']
+    if file.filename == '':
+        flash('No file selected', 'error')
+        return redirect(url_for('admin'))
+    
+    if file and file.filename.endswith('.zip'):
+        try:
+            import json
+            import shutil
+            file_content = file.read()
+            with zipfile.ZipFile(io.BytesIO(file_content), 'r') as zf:
+                for member in zf.namelist():
+                    if member.startswith('/') or '..' in member:
+                        continue
+                    
+                    if member == 'database/homelab.db':
+                        zf.extract(member, '/tmp/restore_temp/')
+                        os.makedirs(os.path.join(BASE_DIR, 'database'), exist_ok=True)
+                        import shutil
+                        shutil.copy2('/tmp/restore_temp/database/homelab.db', os.path.join(BASE_DIR, 'database', 'homelab.db'))
+                    
+                    elif member.startswith('static/uploads/'):
+                        filename = os.path.basename(member)
+                        if filename:
+                            zf.extract(member, '/tmp/restore_temp/')
+                            os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
+                            shutil.copy2(f'/tmp/restore_temp/{member}', os.path.join(app.config['UPLOAD_FOLDER'], filename))
+                    
+                    elif member == 'settings.json':
+                        zf.extract(member, '/tmp/restore_temp/')
+                        with open('/tmp/restore_temp/settings.json', 'r') as f:
+                            settings_data = json.load(f)
+                        for key, value in settings_data.items():
+                            set_setting(key, value)
+            
+            shutil.rmtree('/tmp/restore_temp', ignore_errors=True)
+            
+            flash('Backup restored successfully. Please restart the server.', 'success')
+        except Exception as e:
+            flash(f'Error restoring backup: {str(e)}', 'error')
+    else:
+        flash('Invalid file format. Please upload a .zip file.', 'error')
+    
     return redirect(url_for('admin'))
 
 @app.route('/uploads/<filename>')
